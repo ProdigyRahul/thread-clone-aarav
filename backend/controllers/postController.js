@@ -5,7 +5,8 @@ import { v2 as cloudinary } from "cloudinary";
 const createPost = async (req, res) => {
 	try {
 		const { postedBy, text } = req.body;
-		let { img } = req.body;
+		let { img, video } = req.body;
+		let mediaType = 'none';
 
 		if (!postedBy || !text) {
 			return res.status(400).json({ error: "Postedby and text fields are required" });
@@ -25,12 +26,41 @@ const createPost = async (req, res) => {
 			return res.status(400).json({ error: `Text must be less than ${maxLength} characters` });
 		}
 
+		// Handle image upload
 		if (img) {
 			const uploadedResponse = await cloudinary.uploader.upload(img);
 			img = uploadedResponse.secure_url;
+			mediaType = 'image';
 		}
 
-		const newPost = new Post({ postedBy, text, img });
+		// Handle video upload
+		if (video) {
+			const uploadedResponse = await cloudinary.uploader.upload(video, {
+				resource_type: "video",
+				chunk_size: 6000000, // 6MB chunks for faster uploads
+				eager: [
+					// Create a compressed version for better streaming
+					{ 
+						width: 720, 
+						crop: "scale", 
+						quality: "auto",
+						format: "mp4" 
+					}
+				],
+				eager_async: true
+			});
+			video = uploadedResponse.secure_url;
+			mediaType = 'video';
+		}
+
+		const newPost = new Post({ 
+			postedBy, 
+			text, 
+			img, 
+			video, 
+			mediaType 
+		});
+		
 		await newPost.save();
 
 		res.status(201).json(newPost);
@@ -65,9 +95,16 @@ const deletePost = async (req, res) => {
 			return res.status(401).json({ error: "Unauthorized to delete post" });
 		}
 
+		// Delete image from Cloudinary if exists
 		if (post.img) {
 			const imgId = post.img.split("/").pop().split(".")[0];
 			await cloudinary.uploader.destroy(imgId);
+		}
+
+		// Delete video from Cloudinary if exists
+		if (post.video) {
+			const videoId = post.video.split("/").pop().split(".")[0];
+			await cloudinary.uploader.destroy(videoId, { resource_type: "video" });
 		}
 
 		await Post.findByIdAndDelete(req.params.id);
