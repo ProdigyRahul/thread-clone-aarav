@@ -100,6 +100,16 @@ const PostPage = () => {
 				</Box>
 			)}
 
+			{currentPost.video && (
+				<Box borderRadius={6} overflow={"hidden"} border={"1px solid"} borderColor={"gray.light"}>
+					<video 
+						src={currentPost.video} 
+						controls
+						style={{ width: "100%" }} 
+					/>
+				</Box>
+			)}
+
 			<Flex gap={3} my={3}>
 				<Actions post={currentPost} />
 			</Flex>
