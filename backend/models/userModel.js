@@ -19,7 +19,9 @@ const userSchema = mongoose.Schema(
 		password: {
 			type: String,
 			minLength: 6,
-			required: true,
+			required: function() {
+				return !this.googleId; // Password is required only if no googleId
+			},
 		},
 		profilePic: {
 			type: String,
@@ -40,6 +42,11 @@ const userSchema = mongoose.Schema(
 		isFrozen: {
 			type: Boolean,
 			default: false,
+		},
+		googleId: {
+			type: String,
+			unique: true,
+			sparse: true, // This allows null/undefined values
 		},
 	},
 	{
