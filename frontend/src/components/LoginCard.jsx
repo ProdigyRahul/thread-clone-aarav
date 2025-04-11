@@ -12,25 +12,57 @@ import {
 	Text,
 	useColorModeValue,
 	Link,
+	Divider,
+	HStack,
+	Icon,
 } from "@chakra-ui/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ViewIcon, ViewOffIcon } from "@chakra-ui/icons";
 import { useSetRecoilState } from "recoil";
 import authScreenAtom from "../atoms/authAtom";
 import useShowToast from "../hooks/useShowToast";
 import userAtom from "../atoms/userAtom";
+import { FcGoogle } from "react-icons/fc";
+import { useLocation } from "react-router-dom";
 
 export default function LoginCard() {
 	const [showPassword, setShowPassword] = useState(false);
 	const setAuthScreen = useSetRecoilState(authScreenAtom);
 	const setUser = useSetRecoilState(userAtom);
 	const [loading, setLoading] = useState(false);
-
+	const location = useLocation();
+	const showToast = useShowToast();
+	
 	const [inputs, setInputs] = useState({
 		username: "",
 		password: "",
 	});
-	const showToast = useShowToast();
+	
+	// Handle Google OAuth callback
+	useEffect(() => {
+		// Check URL parameters for auth success
+		const searchParams = new URLSearchParams(location.search);
+		const authSuccess = searchParams.get("authSuccess");
+		const userDataParam = searchParams.get("userData");
+		const error = searchParams.get("error");
+		
+		if (error) {
+			showToast("Error", error, "error");
+		}
+		
+		if (authSuccess && userDataParam) {
+			try {
+				const userData = JSON.parse(decodeURIComponent(userDataParam));
+				localStorage.setItem("user-threads", JSON.stringify(userData));
+				setUser(userData);
+				// Clear URL parameters
+				window.history.replaceState({}, document.title, window.location.pathname);
+			} catch (error) {
+				showToast("Error", "Failed to process authentication data", "error");
+			}
+		}
+	}, [location, setUser, showToast]);
+	
 	const handleLogin = async () => {
 		setLoading(true);
 		try {
@@ -54,6 +86,25 @@ export default function LoginCard() {
 			setLoading(false);
 		}
 	};
+	
+	const handleGoogleLogin = () => {
+		setLoading(true);
+		try {
+			// For debugging, log OAuth URL
+			console.log("Redirecting to Google OAuth...");
+			
+			// Use the backend URL directly for OAuth as the proxy might cause issues
+			const apiUrl = window.location.href.includes('localhost:3000')
+				? '/api/auth/google'  // Use proxy for local development
+				: 'http://localhost:5003/api/auth/google'; // Use direct URL for production
+				
+			window.location.href = apiUrl;
+		} catch (error) {
+			showToast("Error", "Failed to initiate Google login", "error");
+			setLoading(false);
+		}
+	};
+	
 	return (
 		<Flex align={"center"} justify={"center"}>
 			<Stack spacing={8} mx={"auto"} maxW={"lg"} py={12} px={6}>
@@ -73,6 +124,21 @@ export default function LoginCard() {
 					}}
 				>
 					<Stack spacing={4}>
+						<Button 
+							w={"full"} 
+							variant={"outline"} 
+							leftIcon={<Icon as={FcGoogle} boxSize={5} />}
+							onClick={handleGoogleLogin}
+						>
+							Sign in with Google
+						</Button>
+						
+						<HStack>
+							<Divider />
+							<Text fontSize="sm" color="gray.500">OR</Text>
+							<Divider />
+						</HStack>
+						
 						<FormControl isRequired>
 							<FormLabel>Username</FormLabel>
 							<Input

@@ -2,6 +2,9 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import User from '../models/userModel.js';
 import { generateRandomUsername } from '../utils/helpers/generateUsername.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Serialize user into the session
 passport.serializeUser((user, done) => {
@@ -22,10 +25,11 @@ const configurePassport = () => {
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "/api/auth/google/callback",
-    scope: ['profile', 'email']
+    callbackURL: `${process.env.FRONTEND_URL}/api/auth/google/callback`,
+    proxy: true
   }, async (accessToken, refreshToken, profile, done) => {
     try {
+      console.log("Google profile:", profile);
       // Check if user already exists
       let user = await User.findOne({ googleId: profile.id });
       
@@ -60,6 +64,7 @@ const configurePassport = () => {
       return done(null, newUser);
       
     } catch (error) {
+      console.error("Error in Google strategy:", error);
       return done(error, null);
     }
   }));
